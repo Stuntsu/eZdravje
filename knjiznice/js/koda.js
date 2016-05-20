@@ -39,4 +39,85 @@ function generirajPodatke(stPacienta) {
 }
 
 
-// TODO: Tukaj implementirate funkcionalnost, ki jo podpira vaša aplikacija
+function dodajNovega(){
+    var text = $("#imepriimek").val();
+    var ime = text.substring(0, text.indexOf(' '));
+    text = text.substring(text.indexOf(' ') + 1);
+    var priimek = text;
+    var datumrojstva = $("#datumrojstva").val();
+    var sessionId = getSessionId();
+    
+    //nekaj ni podano:
+    
+    if(!ime || !priimek || !datumrojstva){
+        $("#dodajNovegaSporocilo").html("<span class='obvestilo label " + "label-warning fade-in'>Prosim vnesite vse podatke!</span>");
+    }
+    else{
+        $.ajaxSetup({
+		    headers: {"Ehr-Session": sessionId}
+		});
+		$.ajax({
+		    url: baseUrl + "/ehr",
+		    type: 'POST',
+		    success: function (data) {
+		        var ehrId = data.ehrId;
+		        var partyData = {
+		            firstNames: ime,
+		            lastNames: priimek,
+		            dateOfBirth: datumrojstva,
+		            partyAdditionalInfo: [{key: "ehrId", value: ehrId}]
+		        };
+		        $.ajax({
+		            url: baseUrl + "/demographics/party",
+		            type: 'POST',
+		            contentType: 'application/json',
+		            data: JSON.stringify(partyData),
+		            success: function (party) {
+		                if (party.action == 'CREATE') {
+		                    $("#dodajNovegaSporocilo").html("<span class='obvestilo " +
+                          "label label-success fade-in'>Uspešno dodan EHR '" +
+                          ehrId + "'.</span>");
+		                    $("#preberiEHRid").val(ehrId);
+		                }
+		            },
+		            error: function(err) {
+		            	$("#dodajNovegaSporocilo").html("<span class='obvestilo label " +
+                    "label-danger fade-in'>Napaka '" +
+                    JSON.parse(err.responseText).userMessage + "'!");
+		            }
+		        });
+		    }
+		});
+        
+    }
+    
+}
+function preberiEHRid(){
+    var ehrid = $("#ehrid").val();
+    var sessionId = getSessionId();
+    
+    if(!ehrid){
+        $("#preberisporocilo").html("<span class='obvestilo label " + "label-warning fade-in'>Prosimo preverite vnešeni EHR ID!</span>")
+    }
+    
+    else{
+        $.ajax({
+			
+			url: baseUrl + "/demographics/ehr/" + ehrid + "/party",
+			type: 'GET',
+			headers: {"Ehr-Session": sessionId},
+	    	success: function (data) {
+				var party = data.party;
+				$("#preberisporocilo").html("<span class='obvestilo label " +
+          "label-success fade-in'>Podatki prebrani! Bolnik je '" + party.firstNames + " " +
+          party.lastNames + "', ki se je rodil '" + party.dateOfBirth +
+          "'.</span>");
+			},
+			error: function(err) {
+				$("#preberisporocilo").html("<span class='obvestilo label " +
+          "label-danger fade-in'>Napaka '" +
+          JSON.parse(err.responseText).userMessage + "'!");
+			}
+		});
+    }
+}
